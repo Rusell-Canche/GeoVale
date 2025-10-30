@@ -1,10 +1,13 @@
 package com.example.maps.ui
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -23,6 +26,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -46,6 +50,7 @@ fun MapScreen(valeSeleccionado: String, onBack: () -> Unit) {
 
     var selectedLugar by remember { mutableStateOf<Lugar?>(null) }
     var showFilters by remember { mutableStateOf(false) }
+    var showProductos by remember { mutableStateOf(false) }
     var selectedFilter by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
@@ -84,6 +89,14 @@ fun MapScreen(valeSeleccionado: String, onBack: () -> Unit) {
 
     val tipos = lugares.map { it.tipo }.distinct()
 
+    // Modal de productos canjeables
+    if (showProductos) {
+        ProductosCanjeablesModal(
+            valeSeleccionado = valeSeleccionado,
+            onDismiss = { showProductos = false }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -104,6 +117,16 @@ fun MapScreen(valeSeleccionado: String, onBack: () -> Unit) {
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showProductos = true }) {
+                        Badge(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        ) {
+                            Icon(
+                                Icons.Default.ShoppingBag,
+                                contentDescription = "Productos canjeables"
+                            )
+                        }
+                    }
                     IconButton(onClick = { showFilters = !showFilters }) {
                         Icon(
                             Icons.Default.FilterList,
@@ -296,6 +319,19 @@ fun MapScreen(valeSeleccionado: String, onBack: () -> Unit) {
                                             durationMs = 800
                                         )
                                     }
+                                },
+                                onNavigate = {
+                                    val uri = Uri.parse("google.navigation:q=${lugar.lat},${lugar.lng}")
+                                    val intent = Intent(Intent.ACTION_VIEW, uri)
+                                    intent.setPackage("com.google.android.apps.maps")
+
+                                    if (intent.resolveActivity(context.packageManager) != null) {
+                                        context.startActivity(intent)
+                                    } else {
+                                        // Si no tiene Google Maps, usar el navegador
+                                        val browserUri = Uri.parse("https://www.google.com/maps/dir/?api=1&destination=${lugar.lat},${lugar.lng}")
+                                        context.startActivity(Intent(Intent.ACTION_VIEW, browserUri))
+                                    }
                                 }
                             )
                         }
@@ -313,7 +349,7 @@ fun CustomMarker(tipo: String, isSelected: Boolean) {
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessLow
-        )
+        ), label = ""
     )
 
     val color = getColorForTipo(tipo)
@@ -357,11 +393,12 @@ fun LugarCard(
     valeSeleccionado: String,
     isSelected: Boolean,
     userLocation: LatLng,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onNavigate: () -> Unit
 ) {
     val scale by animateFloatAsState(
         targetValue = if (isSelected) 1.05f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy), label = ""
     )
 
     val distance = calculateDistance(
@@ -450,17 +487,202 @@ fun LugarCard(
             }
 
             // Botón de navegación
-            IconButton(
-                onClick = { /* Abrir Google Maps */ },
-                modifier = Modifier.size(40.dp)
+            FilledIconButton(
+                onClick = onNavigate,
+                modifier = Modifier.size(40.dp),
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
             ) {
                 Icon(
                     imageVector = Icons.Default.Directions,
-                    contentDescription = "Navegar",
-                    tint = MaterialTheme.colorScheme.primary
+                    contentDescription = "Cómo llegar",
+                    tint = Color.White
                 )
             }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ProductosCanjeablesModal(
+    valeSeleccionado: String,
+    onDismiss: () -> Unit
+) {
+    val productos = getProductosPorVale(valeSeleccionado)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 16.dp)
+        ) {
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "Productos Canjeables",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "con $valeSeleccionado",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ShoppingBag,
+                        contentDescription = null,
+                        modifier = Modifier.padding(12.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Lista de productos
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                items(productos) { producto ->
+                    ProductoItem(producto)
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(32.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ProductoItem(producto: Producto) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        ),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Icono de categoría
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = producto.color,
+                modifier = Modifier.size(60.dp)
+            ) {
+                Icon(
+                    imageVector = producto.icono,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.padding(14.dp)
+                )
+            }
+
+            // Información del producto
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = producto.nombre,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = producto.categoria,
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = producto.color.copy(alpha = 0.15f)
+                ) {
+                    Text(
+                        text = producto.restriccion,
+                        fontSize = 11.sp,
+                        color = producto.color,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+            }
+
+            // Disponibilidad
+            Surface(
+                shape = CircleShape,
+                color = if (producto.disponible)
+                    Color(0xFF4CAF50).copy(alpha = 0.2f)
+                else
+                    Color(0xFFFF5252).copy(alpha = 0.2f)
+            ) {
+                Icon(
+                    imageVector = if (producto.disponible) Icons.Default.CheckCircle else Icons.Default.Cancel,
+                    contentDescription = null,
+                    tint = if (producto.disponible) Color(0xFF4CAF50) else Color(0xFFFF5252),
+                    modifier = Modifier.padding(8.dp)
+                )
+            }
+        }
+    }
+}
+
+fun getProductosPorVale(vale: String): List<Producto> {
+    return when (vale) {
+        "Edenred" -> listOf(
+            Producto("Despensa completa", "Alimentos básicos", "Sin restricciones", Icons.Default.ShoppingCart, Color(0xFF4CAF50), true),
+            Producto("Frutas y verduras", "Productos frescos", "Vigencia 30 días", Icons.Default.LocalFlorist, Color(0xFF8BC34A), true),
+            Producto("Lácteos", "Leche, queso, yogurt", "Refrigerados", Icons.Default.Icecream, Color(0xFF03A9F4), true),
+            Producto("Carnes y embutidos", "Proteínas", "Vigencia 15 días", Icons.Default.Restaurant, Color(0xFFFF5722), true),
+            Producto("Pan y tortillas", "Panificados", "Consumo diario", Icons.Default.Fastfood, Color(0xFFFF9800), true),
+            Producto("Bebidas", "Agua, jugos, refrescos", "No alcohólicas", Icons.Default.LocalDrink, Color(0xFF2196F3), true),
+            Producto("Productos de limpieza", "Hogar", "Uso doméstico", Icons.Default.CleaningServices, Color(0xFF9C27B0), false)
+        )
+        "Sodexo" -> listOf(
+            Producto("Alimentos preparados", "Comida lista", "Restaurantes afiliados", Icons.Default.Restaurant, Color(0xFFFF9800), true),
+            Producto("Menú del día", "Comida corrida", "Lun-Vie", Icons.Default.Fastfood, Color(0xFFFF5722), true),
+            Producto("Desayunos", "Comida matutina", "Antes de 12pm", Icons.Default.FreeBreakfast, Color(0xFFFFC107), true),
+            Producto("Café y postres", "Cafeterías", "Todo el día", Icons.Default.Cake, Color(0xFF795548), true),
+            Producto("Despensa básica", "Supermercados", "Productos limitados", Icons.Default.ShoppingCart, Color(0xFF4CAF50), true),
+            Producto("Comida rápida", "Fast food", "Cadenas autorizadas", Icons.Default.LocalPizza, Color(0xFFE91E63), false)
+        )
+        "Sí Vale" -> listOf(
+            Producto("Víveres generales", "Supermercado", "Amplio catálogo", Icons.Default.ShoppingCart, Color(0xFF4CAF50), true),
+            Producto("Medicamentos", "Farmacias", "Con receta", Icons.Default.LocalHospital, Color(0xFFE91E63), true),
+            Producto("Productos de higiene", "Cuidado personal", "Aseo personal", Icons.Default.Spa, Color(0xFF9C27B0), true),
+            Producto("Alimentos perecederos", "Frescos", "Consumo inmediato", Icons.Default.LocalFlorist, Color(0xFF8BC34A), true),
+            Producto("Bebidas sin alcohol", "Líquidos", "No alcohólicas", Icons.Default.LocalDrink, Color(0xFF2196F3), true),
+            Producto("Tiendas de conveniencia", "Oxxo, 7-Eleven", "Productos limitados", Icons.Default.Store, Color(0xFF00BCD4), true),
+            Producto("Gasolina", "Combustible", "Estaciones autorizadas", Icons.Default.LocalGasStation, Color(0xFFFF5722), false)
+        )
+        else -> listOf(
+            Producto("Consulta disponibilidad", "Información", "Contacta a tu proveedor", Icons.Default.Info, Color(0xFF607D8B), false)
+        )
     }
 }
 
@@ -500,4 +722,13 @@ data class Lugar(
     val lat: Double,
     val lng: Double,
     val tipo: String = "Establecimiento"
+)
+
+data class Producto(
+    val nombre: String,
+    val categoria: String,
+    val restriccion: String,
+    val icono: ImageVector,
+    val color: Color,
+    val disponible: Boolean
 )

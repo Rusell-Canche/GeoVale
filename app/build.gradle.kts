@@ -55,6 +55,7 @@ dependencies {
     implementation(libs.play.services.maps)
     implementation(libs.play.services.location)
     implementation("androidx.compose.material:material-icons-extended")
+    implementation("com.google.maps.android:android-maps-utils:3.4.0")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
