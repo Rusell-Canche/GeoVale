@@ -5,6 +5,6 @@ import com.example.maps.data.model.Proveedor
 
 class ProveedorValeRepository {
     suspend fun getProveedores(): List<Proveedor> {
-        return RetrofitClient.apiService.getProveedoresVales().data
+        return RetrofitClient.apiService.getProveedoresVales().proveedores
     }
 }

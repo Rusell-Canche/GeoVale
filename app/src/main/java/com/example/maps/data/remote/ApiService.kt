@@ -17,7 +17,7 @@ interface ApiService {
  * }
  */
 data class ApiResponse<T>(
-    val data: T,
+    val proveedores: T,
     val message: String,
     val success: Boolean
 )
