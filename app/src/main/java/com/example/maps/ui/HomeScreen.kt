@@ -14,22 +14,27 @@ import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.filled.Store
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.maps.ui.viewmodel.ProveedorViewModel
 @Composable
 fun HomeScreen(onValeSelected: (String) -> Unit) {
+    val viewModel: ProveedorViewModel = viewModel()
+    val proveedores by viewModel.proveedores.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
 
-    val vales = listOf(
-        Vale("Edenred", Color(0xFFD32F2F), Icons.Default.CardGiftcard),
-        Vale("Sodexo", Color(0xFF1976D2), Icons.Default.Store),
-        Vale("Sí Vale", Color(0xFF388E3C), Icons.Default.LocalOffer),
-        Vale("Up Sí Vale", Color(0xFFFBC02D), Icons.Default.ShoppingBag)
-    )
+
+    LaunchedEffect(Unit) {
+        viewModel.loadProveedores()
+    }
 
     Scaffold(
         containerColor = Color(0xFFF5F5F5)
@@ -61,58 +66,37 @@ fun HomeScreen(onValeSelected: (String) -> Unit) {
             Spacer(modifier = Modifier.height(30.dp))
 
             // ✅ Tarjetas tipo Google Pay / Wallet
-            vales.forEach { vale ->
-
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 10.dp)
-                        .clickable { onValeSelected(vale.nombre) }
-                        .animateContentSize(),
-                    shape = RoundedCornerShape(18.dp),
-                    elevation = CardDefaults.cardElevation(3.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White)
-                ) {
-                    Row(
+            when {
+                isLoading -> CircularProgressIndicator()
+                proveedores.isEmpty() -> Text("No hay proveedores disponibles.")
+                else -> proveedores.forEach { proveedor ->
+                    Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(20.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Start
+                            .padding(vertical = 10.dp)
+                            .clickable { onValeSelected(proveedor.nombre) }
+                            .animateContentSize(),
+                        shape = RoundedCornerShape(18.dp),
+                        elevation = CardDefaults.cardElevation(3.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White)
                     ) {
-
-                        // ✅ Ícono en Google Pay style
-                        Box(
+                        Row(
                             modifier = Modifier
-                                .size(55.dp)
-                                .background(
-                                    color = vale.color.copy(alpha = 0.15f),
-                                    shape = RoundedCornerShape(12.dp)
-                                ),
-                            contentAlignment = Alignment.Center
+                                .fillMaxWidth()
+                                .padding(20.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = vale.icon,
+                                imageVector = Icons.Default.CardGiftcard,
                                 contentDescription = null,
-                                tint = vale.color,
+                                tint = Color(0xFFD32F2F),
                                 modifier = Modifier.size(32.dp)
                             )
-                        }
-
-                        Spacer(modifier = Modifier.width(16.dp))
-
-                        // ✅ Info del vale estilo pase digital
-                        Column {
-                            Text(
-                                vale.nombre,
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                "Vale electrónico",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color.Gray
-                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column {
+                                Text(proveedor.nombre, style = MaterialTheme.typography.titleLarge)
+                                Text("Vale electrónico", color = Color.Gray)
+                            }
                         }
                     }
                 }
@@ -120,9 +104,3 @@ fun HomeScreen(onValeSelected: (String) -> Unit) {
         }
     }
 }
-
-data class Vale(
-    val nombre: String,
-    val color: Color,
-    val icon: androidx.compose.ui.graphics.vector.ImageVector
-)
