@@ -1,7 +1,7 @@
 package com.example.maps.data.model
 
 data class Proveedor(
-    val id: Int,
+    val id: String,
     val nombre: String,
     val descripcion: String?,
     val sitio_web: String?,

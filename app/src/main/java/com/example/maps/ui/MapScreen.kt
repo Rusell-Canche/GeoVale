@@ -5,7 +5,6 @@ import android.net.Uri
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -22,11 +21,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -37,25 +34,38 @@ import com.google.maps.android.compose.*
 import kotlinx.coroutines.launch
 import kotlin.math.*
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.maps.R
+import com.example.maps.data.model.Establecimiento
+import com.example.maps.ui.viewmodel.EstablecimientoViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MapScreen(valeSeleccionado: String, onBack: () -> Unit) {
+fun MapScreen(valeID: String, valeNombre: String, onBack: () -> Unit) {
+
+    val viewModel: EstablecimientoViewModel = viewModel()
+    val lugares by viewModel.establecimientos.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+
+    LaunchedEffect(valeID) {
+        viewModel.loadEstablecimientos(valeID)
+    }
+
+
     val context = LocalContext.current
     val chetumal = LatLng(18.51957, -88.30397)
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(chetumal, 13f)
     }
 
-    var selectedLugar by remember { mutableStateOf<Lugar?>(null) }
+    var selectedLugar by remember { mutableStateOf<Establecimiento?>(null) }
     var showFilters by remember { mutableStateOf(false) }
     var showProductos by remember { mutableStateOf(false) }
     var selectedFilter by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
-    val lugares = when (valeSeleccionado) {
+  /*  val lugares = when (valeSeleccionado) {
         "Edenred" -> listOf(
             Lugar("Chedraui Plaza las Americas", 18.52030, -88.32093, "Supermercado"),
             Lugar("Soriana Chetumal", 18.52624, -88.29481, "Supermercado"),
@@ -80,6 +90,7 @@ fun MapScreen(valeSeleccionado: String, onBack: () -> Unit) {
             Lugar("Oxxo Centro", 18.5032, -88.3057, "Tienda de conveniencia")
         )
     }
+*/
 
     val filteredLugares = if (selectedFilter != null) {
         lugares.filter { it.tipo == selectedFilter }
@@ -92,7 +103,7 @@ fun MapScreen(valeSeleccionado: String, onBack: () -> Unit) {
     // Modal de productos canjeables
     if (showProductos) {
         ProductosCanjeablesModal(
-            valeSeleccionado = valeSeleccionado,
+            valeSeleccionado = valeNombre,
             onDismiss = { showProductos = false }
         )
     }
@@ -104,7 +115,7 @@ fun MapScreen(valeSeleccionado: String, onBack: () -> Unit) {
                     Column {
                         Text("Lugares válidos", fontSize = 16.sp)
                         Text(
-                            valeSeleccionado,
+                            valeNombre,
                             fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold
@@ -203,7 +214,7 @@ fun MapScreen(valeSeleccionado: String, onBack: () -> Unit) {
                 filteredLugares.forEach { lugar ->
                     val isSelected = selectedLugar == lugar
                     MarkerComposable(
-                        state = MarkerState(position = LatLng(lugar.lat, lugar.lng)),
+                        state = MarkerState(position = LatLng(lugar.latitud, lugar.longitud)),
                         title = lugar.nombre,
                         snippet = lugar.tipo,
                         onClick = {
@@ -215,7 +226,7 @@ fun MapScreen(valeSeleccionado: String, onBack: () -> Unit) {
                                 }
                                 cameraPositionState.animate(
                                     CameraUpdateFactory.newLatLngZoom(
-                                        LatLng(lugar.lat, lugar.lng),
+                                        LatLng(lugar.latitud, lugar.longitud),
                                         15f
                                     ),
                                     durationMs = 800
@@ -305,7 +316,7 @@ fun MapScreen(valeSeleccionado: String, onBack: () -> Unit) {
                         items(filteredLugares) { lugar ->
                             LugarCard(
                                 lugar = lugar,
-                                valeSeleccionado = valeSeleccionado,
+                                valeSeleccionado = valeNombre,
                                 isSelected = selectedLugar == lugar,
                                 userLocation = chetumal,
                                 onClick = {
@@ -313,7 +324,7 @@ fun MapScreen(valeSeleccionado: String, onBack: () -> Unit) {
                                     scope.launch {
                                         cameraPositionState.animate(
                                             CameraUpdateFactory.newLatLngZoom(
-                                                LatLng(lugar.lat, lugar.lng),
+                                                LatLng(lugar.latitud, lugar.longitud),
                                                 15f
                                             ),
                                             durationMs = 800
@@ -321,7 +332,7 @@ fun MapScreen(valeSeleccionado: String, onBack: () -> Unit) {
                                     }
                                 },
                                 onNavigate = {
-                                    val uri = Uri.parse("google.navigation:q=${lugar.lat},${lugar.lng}")
+                                    val uri = Uri.parse("google.navigation:q=${lugar.latitud},${lugar.longitud}")
                                     val intent = Intent(Intent.ACTION_VIEW, uri)
                                     intent.setPackage("com.google.android.apps.maps")
 
@@ -329,7 +340,7 @@ fun MapScreen(valeSeleccionado: String, onBack: () -> Unit) {
                                         context.startActivity(intent)
                                     } else {
                                         // Si no tiene Google Maps, usar el navegador
-                                        val browserUri = Uri.parse("https://www.google.com/maps/dir/?api=1&destination=${lugar.lat},${lugar.lng}")
+                                        val browserUri = Uri.parse("https://www.google.com/maps/dir/?api=1&destination=${lugar.latitud},${lugar.longitud}")
                                         context.startActivity(Intent(Intent.ACTION_VIEW, browserUri))
                                     }
                                 }
@@ -389,7 +400,7 @@ fun CustomMarker(tipo: String, isSelected: Boolean) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LugarCard(
-    lugar: Lugar,
+    lugar: Establecimiento,
     valeSeleccionado: String,
     isSelected: Boolean,
     userLocation: LatLng,
@@ -403,7 +414,7 @@ fun LugarCard(
 
     val distance = calculateDistance(
         userLocation.latitude, userLocation.longitude,
-        lugar.lat, lugar.lng
+        lugar.latitud, lugar.longitud
     )
 
     Card(
@@ -716,13 +727,6 @@ fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): D
     val c = 2 * atan2(sqrt(a), sqrt(1 - a))
     return r * c
 }
-
-data class Lugar(
-    val nombre: String,
-    val lat: Double,
-    val lng: Double,
-    val tipo: String = "Establecimiento"
-)
 
 data class Producto(
     val nombre: String,

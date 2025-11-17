@@ -6,16 +6,23 @@ import com.example.maps.ui.MapScreen
 
 @Composable
 fun AppNavigation() {
-    var selectedVale by remember { mutableStateOf<String?>(null) }
+    var proveedorSeleccionado  by remember { mutableStateOf<ProveedorSeleccionado?>(null) }
 
-    if (selectedVale == null) {
-        HomeScreen(onValeSelected = { vale ->
-            selectedVale = vale
+    if (proveedorSeleccionado  == null) {
+        HomeScreen(
+            onProveedorSeleccionado = { proveedor ->
+            proveedorSeleccionado  = proveedor
         })
     } else {
         MapScreen(
-            valeSeleccionado = selectedVale!!,
-            onBack = { selectedVale = null }
+            valeID = proveedorSeleccionado!!.id,
+            valeNombre = proveedorSeleccionado!!.nombre,
+            onBack = { proveedorSeleccionado = null }
         )
     }
 }
+
+data class ProveedorSeleccionado(
+    val id: String,
+    val nombre: String
+)

@@ -24,9 +24,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.maps.ProveedorSeleccionado
 import com.example.maps.ui.viewmodel.ProveedorViewModel
 @Composable
-fun HomeScreen(onValeSelected: (String) -> Unit) {
+fun HomeScreen(onProveedorSeleccionado: (ProveedorSeleccionado) -> Unit) {
     val viewModel: ProveedorViewModel = viewModel()
     val proveedores by viewModel.proveedores.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -74,7 +75,9 @@ fun HomeScreen(onValeSelected: (String) -> Unit) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 10.dp)
-                            .clickable { onValeSelected(proveedor.nombre) }
+                            .clickable { onProveedorSeleccionado( ProveedorSeleccionado(
+                                id = proveedor.id.toString(),
+                                nombre = proveedor.nombre)) }
                             .animateContentSize(),
                         shape = RoundedCornerShape(18.dp),
                         elevation = CardDefaults.cardElevation(3.dp),
@@ -104,3 +107,8 @@ fun HomeScreen(onValeSelected: (String) -> Unit) {
         }
     }
 }
+
+data class ProveedorSeleccionado(
+    val id: String,
+    val nombre: String
+)
